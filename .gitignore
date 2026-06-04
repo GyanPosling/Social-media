@@ -1,0 +1,14 @@
+.gradle/
+.kotlin/
+build/
+out/
+
+**/build/
+
+.idea/
+.vscode/
+*.iml
+
+*.log
+
+docker-data/

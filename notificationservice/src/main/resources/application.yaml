@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: notificationservice
+  data:
+    mongodb:
+      uri: mongodb://root:secret@localhost:27017/notifications?authSource=admin
+  kafka:
+    bootstrap-servers: localhost:9092
+
+server:
+  port: 8084
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

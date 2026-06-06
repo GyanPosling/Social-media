@@ -19,9 +19,13 @@ import org.springframework.cache.annotation.CacheEvict
 import org.springframework.cache.annotation.CachePut
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.cache.annotation.Caching
+import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
+import java.util.UUID
 
 @Service
 @Transactional(readOnly = true)
@@ -32,13 +36,28 @@ class UserServiceImpl(
 ) : UserService {
 	@Transactional
 	@CachePut(value = [UserCacheNames.USER_PROFILES], key = "#result.id")
-	override fun createUser(request: CreateUserRequest): UserProfileResponse {
-		if (userRepository.existsByUsername(request.username)) {
-			throw UserAlreadyExistsException(request.username)
+	override fun createUser(userId: UUID, userEmail: String?, request: CreateUserRequest): UserProfileResponse {
+		val username = request.username.trim().lowercase()
+		val trustedEmail = userEmail?.trim()?.lowercase()
+
+		if (userRepository.existsById(userId)) {
+			throw UserAlreadyExistsException("id '$userId'")
 		}
 
-		val user = userMapper.toEntity(request)
-		val savedUser = userRepository.save(user)
+		if (userRepository.existsByUsername(username)) {
+			throw UserAlreadyExistsException("username '$username'")
+		}
+
+		val user = userMapper.toEntity(
+			userId = userId,
+			email = trustedEmail,
+			request = request.copy(username = username),
+		)
+		val savedUser = try {
+			userRepository.save(user)
+		} catch (exception: DataIntegrityViolationException) {
+			throw UserAlreadyExistsException("id '$userId' or username '$username'")
+		}
 
 		return userMapper.toProfileResponse(
 			user = savedUser,
@@ -48,14 +67,14 @@ class UserServiceImpl(
 	}
 
 	@Cacheable(value = [UserCacheNames.USERS], key = "#userId", unless = "#result == null")
-	override fun getUser(userId: Long): UserResponse {
+	override fun getUser(userId: UUID): UserResponse {
 		val user = findUserById(userId)
 
 		return userMapper.toResponse(user)
 	}
 
 	@Cacheable(value = [UserCacheNames.USER_PROFILES], key = "#userId", unless = "#result == null")
-	override fun getUserProfile(userId: Long): UserProfileResponse {
+	override fun getUserProfile(userId: UUID): UserProfileResponse {
 		val user = findUserById(userId)
 
 		return userMapper.toProfileResponse(
@@ -68,13 +87,13 @@ class UserServiceImpl(
 	@Transactional
 	@Caching(
 		put = [
-			CachePut(value = [UserCacheNames.USER_PROFILES], key = "#userId"),
+			CachePut(value = [UserCacheNames.USER_PROFILES], key = "#result.id"),
 		],
 		evict = [
-			CacheEvict(value = [UserCacheNames.USERS], key = "#userId"),
+			CacheEvict(value = [UserCacheNames.USERS], key = "#result.id"),
 		],
 	)
-	override fun updateUser(userId: Long, request: UpdateUserRequest): UserProfileResponse {
+	override fun updateUser(userId: UUID, request: UpdateUserRequest): UserProfileResponse {
 		val user = findUserById(userId)
 
 		request.displayName?.let { user.displayName = it }
@@ -83,27 +102,26 @@ class UserServiceImpl(
 		user.updatedAt = Instant.now()
 
 		val savedUser = userRepository.save(user)
+		val savedUserId = savedUser.id
 
 		return userMapper.toProfileResponse(
 			user = savedUser,
-			followersCount = userFollowRepository.countByFollowingId(userId),
-			followingCount = userFollowRepository.countByFollowerId(userId),
+			followersCount = userFollowRepository.countByFollowingId(savedUserId),
+			followingCount = userFollowRepository.countByFollowerId(savedUserId),
 		)
 	}
 
-	override fun searchUsers(query: String): List<UserResponse> {
-		return userRepository.findByUsernameContainingIgnoreCase(query)
+	override fun searchUsers(query: String, pageable: Pageable): Page<UserResponse> =
+		userRepository.findByUsernameContainingIgnoreCase(query.trim(), pageable)
 			.map(userMapper::toResponse)
-	}
 
 	@Transactional
 	@Caching(
 		evict = [
-			CacheEvict(value = [UserCacheNames.USER_PROFILES], key = "#followerId"),
-			CacheEvict(value = [UserCacheNames.USER_PROFILES], key = "#followingId"),
+			CacheEvict(value = [UserCacheNames.USER_PROFILES], allEntries = true),
 		],
 	)
-	override fun followUser(followerId: Long, followingId: Long): FollowResponse {
+	override fun followUser(followerId: UUID, followingId: UUID): FollowResponse {
 		if (followerId == followingId) {
 			throw InvalidFollowOperationException("User cannot follow himself")
 		}
@@ -128,11 +146,10 @@ class UserServiceImpl(
 	@Transactional
 	@Caching(
 		evict = [
-			CacheEvict(value = [UserCacheNames.USER_PROFILES], key = "#followerId"),
-			CacheEvict(value = [UserCacheNames.USER_PROFILES], key = "#followingId"),
+			CacheEvict(value = [UserCacheNames.USER_PROFILES], allEntries = true),
 		],
 	)
-	override fun unfollowUser(followerId: Long, followingId: Long) {
+	override fun unfollowUser(followerId: UUID, followingId: UUID) {
 		if (followerId == followingId) {
 			throw InvalidFollowOperationException("User cannot unfollow himself")
 		}
@@ -147,31 +164,25 @@ class UserServiceImpl(
 		userFollowRepository.deleteByFollowerIdAndFollowingId(followerId, followingId)
 	}
 
-	override fun getFollowers(userId: Long): List<UserResponse> {
+	override fun getFollowers(userId: UUID, pageable: Pageable): Page<UserResponse> {
 		ensureUserExists(userId)
 
-		val followerIds = userFollowRepository.findByFollowingId(userId)
-			.map(UserFollow::followerId)
-
-		return userRepository.findAllById(followerIds)
+		return userRepository.findFollowers(userId, pageable)
 			.map(userMapper::toResponse)
 	}
 
-	override fun getFollowing(userId: Long): List<UserResponse> {
+	override fun getFollowing(userId: UUID, pageable: Pageable): Page<UserResponse> {
 		ensureUserExists(userId)
 
-		val followingIds = userFollowRepository.findByFollowerId(userId)
-			.map(UserFollow::followingId)
-
-		return userRepository.findAllById(followingIds)
+		return userRepository.findFollowing(userId, pageable)
 			.map(userMapper::toResponse)
 	}
 
-	private fun findUserById(userId: Long): User =
+	private fun findUserById(userId: UUID): User =
 		userRepository.findById(userId)
 			.orElseThrow { UserNotFoundException(userId) }
 
-	private fun ensureUserExists(userId: Long) {
+	private fun ensureUserExists(userId: UUID) {
 		if (!userRepository.existsById(userId)) {
 			throw UserNotFoundException(userId)
 		}

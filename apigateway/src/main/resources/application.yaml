@@ -1,10 +1,93 @@
 spring:
   application:
     name: apigateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: ${GATEWAY_CONNECT_TIMEOUT_MS:3000}
+            response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:10s}
+          routes:
+            - id: authservice
+              uri: ${services.authservice-url:http://localhost:8083}
+              predicates:
+                - Path=/auth/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: authservice
+                    fallbackUri: forward:/fallback
+            - id: userservice
+              uri: ${services.userservice-url:http://localhost:8081}
+              predicates:
+                - Path=/users/**
+              filters:
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                - name: CircuitBreaker
+                  args:
+                    name: userservice
+                    fallbackUri: forward:/fallback
+            - id: postservice
+              uri: ${services.postservice-url:http://localhost:8082}
+              predicates:
+                - Path=/posts/**
+              filters:
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                - name: CircuitBreaker
+                  args:
+                    name: postservice
+                    fallbackUri: forward:/fallback
+            - id: notificationservice
+              uri: ${services.notificationservice-url:http://localhost:8084}
+              predicates:
+                - Path=/notifications/**
+              filters:
+                - name: Retry
+                  args:
+                    retries: 2
+                    methods: GET
+                    statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                - name: CircuitBreaker
+                  args:
+                    name: notificationservice
+                    fallbackUri: forward:/fallback
   data:
     redis:
       host: localhost
       port: 6379
+
+jwt:
+  secret: ${JWT_SECRET:change-this-secret-to-at-least-32-characters}
+
+gateway:
+  internal-signing-secret: ${GATEWAY_INTERNAL_SIGNING_SECRET:change-this-internal-secret-to-at-least-32-characters}
+
+services:
+  authservice-url: ${AUTHSERVICE_BASE_URL:http://localhost:8083}
+  userservice-url: ${USERSERVICE_BASE_URL:http://localhost:8081}
+  postservice-url: ${POSTSERVICE_BASE_URL:http://localhost:8082}
+  notificationservice-url: ${NOTIFICATIONSERVICE_BASE_URL:http://localhost:8084}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+security:
+  auth:
+    login-path: /auth/login
+    register-path: /auth/register
+
+springdoc:
+  swagger-ui:
+    disable-swagger-default-url: true
 
 server:
   port: 8080

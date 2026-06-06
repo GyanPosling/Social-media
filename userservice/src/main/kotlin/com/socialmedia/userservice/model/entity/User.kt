@@ -2,21 +2,26 @@ package com.socialmedia.userservice.model.entity
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.Instant
+import java.util.UUID
 
 @Entity
 @Table(name = "users")
 class User(
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	val id: Long = 0,
+	@Column(nullable = false)
+	val id: UUID,
 
 	@Column(nullable = false, unique = true, length = 50)
 	var username: String,
+
+	@Column(length = 254)
+	var email: String? = null,
+
+	@Column(length = 32)
+	var phone: String? = null,
 
 	@Column(name = "display_name", nullable = false, length = 100)
 	var displayName: String,

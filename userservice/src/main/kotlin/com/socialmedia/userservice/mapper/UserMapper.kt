@@ -7,12 +7,16 @@ import com.socialmedia.userservice.model.response.FollowResponse
 import com.socialmedia.userservice.model.response.UserProfileResponse
 import com.socialmedia.userservice.model.response.UserResponse
 import org.springframework.stereotype.Component
+import java.util.UUID
 
 @Component
 class UserMapper {
-	fun toEntity(request: CreateUserRequest): User =
+	fun toEntity(userId: UUID, email: String?, request: CreateUserRequest): User =
 		User(
-			username = request.username,
+			id = userId,
+			username = request.username.trim().lowercase(),
+			email = email?.trim()?.lowercase(),
+			phone = request.phone?.trim(),
 			displayName = request.displayName,
 			bio = request.bio,
 			avatarUrl = request.avatarUrl,

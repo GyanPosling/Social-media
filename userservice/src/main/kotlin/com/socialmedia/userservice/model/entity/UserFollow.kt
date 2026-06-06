@@ -8,6 +8,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.Instant
+import java.util.UUID
 
 @Entity
 @Table(
@@ -25,10 +26,10 @@ class UserFollow(
 	val id: Long = 0,
 
 	@Column(name = "follower_id", nullable = false)
-	val followerId: Long,
+	val followerId: UUID,
 
 	@Column(name = "following_id", nullable = false)
-	val followingId: Long,
+	val followingId: UUID,
 
 	@Column(name = "created_at", nullable = false)
 	val createdAt: Instant = Instant.now(),

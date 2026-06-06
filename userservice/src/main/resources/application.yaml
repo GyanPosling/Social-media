@@ -18,6 +18,10 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
 
+gateway:
+  internal-signing-secret: ${GATEWAY_INTERNAL_SIGNING_SECRET:change-this-internal-secret-to-at-least-32-characters}
+  signature-max-age-seconds: 300
+
 server:
   port: 8081
 

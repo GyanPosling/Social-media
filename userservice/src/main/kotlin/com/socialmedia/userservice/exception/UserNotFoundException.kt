@@ -1,3 +1,7 @@
 package com.socialmedia.userservice.exception
 
-class UserNotFoundException(userId: Long) : RuntimeException("User with id '$userId' was not found")
+import java.util.UUID
+
+class UserNotFoundException(identifier: String) : RuntimeException("User with $identifier was not found") {
+	constructor(userId: UUID) : this("id '$userId'")
+}

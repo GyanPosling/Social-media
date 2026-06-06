@@ -1,6 +1,8 @@
 CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
+    email VARCHAR(254),
+    phone VARCHAR(32),
     display_name VARCHAR(100) NOT NULL,
     bio VARCHAR(500),
     avatar_url VARCHAR(500),
@@ -11,8 +13,8 @@ CREATE TABLE users (
 
 CREATE TABLE user_follows (
     id BIGSERIAL PRIMARY KEY,
-    follower_id BIGINT NOT NULL,
-    following_id BIGINT NOT NULL,
+    follower_id UUID NOT NULL,
+    following_id UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uk_user_follows_follower_following UNIQUE (follower_id, following_id),
     CONSTRAINT chk_user_follows_not_self CHECK (follower_id <> following_id),
@@ -27,5 +29,9 @@ CREATE TABLE user_follows (
 );
 
 CREATE INDEX idx_users_username ON users (username);
+CREATE UNIQUE INDEX uk_users_email ON users (email)
+WHERE email IS NOT NULL;
+CREATE UNIQUE INDEX uk_users_phone ON users (phone)
+WHERE phone IS NOT NULL;
 CREATE INDEX idx_user_follows_follower_id ON user_follows (follower_id);
 CREATE INDEX idx_user_follows_following_id ON user_follows (following_id);

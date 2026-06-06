@@ -1,6 +1,7 @@
 package com.socialmedia.userservice.exception
 
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
@@ -22,6 +23,13 @@ class GlobalExceptionHandler {
 		request: HttpServletRequest,
 	): ResponseEntity<ApiErrorResponse> =
 		errorResponse(HttpStatus.CONFLICT, exception.message ?: "User already exists", request)
+
+	@ExceptionHandler(DataIntegrityViolationException::class)
+	fun handleDataIntegrityViolation(
+		exception: DataIntegrityViolationException,
+		request: HttpServletRequest,
+	): ResponseEntity<ApiErrorResponse> =
+		errorResponse(HttpStatus.CONFLICT, "User already exists or violates a database constraint", request)
 
 	@ExceptionHandler(InvalidFollowOperationException::class)
 	fun handleInvalidFollowOperation(

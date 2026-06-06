@@ -2,17 +2,14 @@ package com.socialmedia.userservice.repository
 
 import com.socialmedia.userservice.model.entity.UserFollow
 import org.springframework.data.jpa.repository.JpaRepository
+import java.util.UUID
 
 interface UserFollowRepository : JpaRepository<UserFollow, Long> {
-	fun existsByFollowerIdAndFollowingId(followerId: Long, followingId: Long): Boolean
+	fun existsByFollowerIdAndFollowingId(followerId: UUID, followingId: UUID): Boolean
 
-	fun findByFollowerId(followerId: Long): List<UserFollow>
+	fun countByFollowerId(followerId: UUID): Long
 
-	fun findByFollowingId(followingId: Long): List<UserFollow>
+	fun countByFollowingId(followingId: UUID): Long
 
-	fun countByFollowerId(followerId: Long): Long
-
-	fun countByFollowingId(followingId: Long): Long
-
-	fun deleteByFollowerIdAndFollowingId(followerId: Long, followingId: Long)
+	fun deleteByFollowerIdAndFollowingId(followerId: UUID, followingId: UUID)
 }

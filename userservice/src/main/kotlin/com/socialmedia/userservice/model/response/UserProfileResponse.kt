@@ -1,9 +1,10 @@
 package com.socialmedia.userservice.model.response
 
 import java.time.Instant
+import java.util.UUID
 
 data class UserProfileResponse(
-	val id: Long,
+	val id: UUID,
 	val username: String,
 	val displayName: String,
 	val bio: String?,

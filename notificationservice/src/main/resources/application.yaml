@@ -6,6 +6,19 @@ spring:
       uri: mongodb://root:secret@localhost:27017/notifications?authSource=admin
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+
+gateway:
+  internal-signing-secret: ${GATEWAY_INTERNAL_SIGNING_SECRET:change-this-internal-secret-to-at-least-32-characters}
+  signature-max-age-seconds: 300
+
+notifications:
+  kafka:
+    topic: social.notifications
+    group-id: notificationservice
 
 server:
   port: 8084

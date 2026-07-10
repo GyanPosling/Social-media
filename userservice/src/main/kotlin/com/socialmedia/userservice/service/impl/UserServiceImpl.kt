@@ -1,6 +1,8 @@
 package com.socialmedia.userservice.service.impl
 
 import com.socialmedia.userservice.config.UserCacheNames
+import com.socialmedia.userservice.event.NotificationEventPublisher
+import com.socialmedia.userservice.event.SocialNotificationEvent
 import com.socialmedia.userservice.exception.InvalidFollowOperationException
 import com.socialmedia.userservice.exception.UserAlreadyExistsException
 import com.socialmedia.userservice.exception.UserNotFoundException
@@ -33,6 +35,7 @@ class UserServiceImpl(
 	private val userRepository: UserRepository,
 	private val userFollowRepository: UserFollowRepository,
 	private val userMapper: UserMapper,
+	private val notificationEventPublisher: NotificationEventPublisher,
 ) : UserService {
 	@Transactional
 	@CachePut(value = [UserCacheNames.USER_PROFILES], key = "#result.id")
@@ -137,6 +140,13 @@ class UserServiceImpl(
 			UserFollow(
 				followerId = followerId,
 				followingId = followingId,
+			),
+		)
+		notificationEventPublisher.publish(
+			SocialNotificationEvent(
+				type = "USER_FOLLOWED",
+				recipientId = followingId,
+				actorId = followerId,
 			),
 		)
 

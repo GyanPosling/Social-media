@@ -1,5 +1,7 @@
 package com.socialmedia.authservice.service.impl
 
+import com.socialmedia.authservice.event.UserEventPublisher
+import com.socialmedia.authservice.event.UserRegisteredEvent
 import com.socialmedia.authservice.exception.AuthAccountAlreadyExistsException
 import com.socialmedia.authservice.exception.InvalidCredentialsException
 import com.socialmedia.authservice.model.entity.AuthAccount
@@ -20,6 +22,7 @@ class AuthServiceImpl(
 	private val authAccountRepository: AuthAccountRepository,
 	private val passwordEncoder: PasswordEncoder,
 	private val jwtService: JwtService,
+	private val userEventPublisher: UserEventPublisher,
 ) : AuthService {
 	@Transactional
 	override fun register(request: RegisterRequest): AuthResponse {
@@ -38,6 +41,12 @@ class AuthServiceImpl(
 		} catch (exception: DataIntegrityViolationException) {
 			throw AuthAccountAlreadyExistsException(email)
 		}
+		userEventPublisher.publishUserRegistered(
+			UserRegisteredEvent(
+				userId = savedAccount.id,
+				email = savedAccount.email,
+			),
+		)
 
 		return savedAccount.toAuthResponse()
 	}

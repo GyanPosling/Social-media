@@ -1,5 +1,7 @@
 package com.socialmedia.postservice.service.impl
 
+import com.socialmedia.postservice.event.NotificationEventPublisher
+import com.socialmedia.postservice.event.SocialNotificationEvent
 import com.socialmedia.postservice.exception.InvalidPostOperationException
 import com.socialmedia.postservice.exception.PostCommentNotFoundException
 import com.socialmedia.postservice.exception.PostNotFoundException
@@ -32,6 +34,7 @@ class PostServiceImpl(
 	private val postLikeRepository: PostLikeRepository,
 	private val postCommentRepository: PostCommentRepository,
 	private val postMapper: PostMapper,
+	private val notificationEventPublisher: NotificationEventPublisher,
 ) : PostService {
 	@Transactional
 	override fun createPost(authorId: UUID, request: CreatePostRequest): PostResponse {
@@ -77,7 +80,7 @@ class PostServiceImpl(
 
 	@Transactional
 	override fun likePost(userId: UUID, postId: UUID): PostLikeResponse {
-		ensurePostExists(postId)
+		val post = findPost(postId)
 
 		if (postLikeRepository.existsByPostIdAndUserId(postId, userId)) {
 			throw InvalidPostOperationException("User '$userId' already liked post '$postId'")
@@ -92,6 +95,16 @@ class PostServiceImpl(
 			)
 		} catch (exception: DataIntegrityViolationException) {
 			throw InvalidPostOperationException("User '$userId' already liked post '$postId'")
+		}
+		if (post.authorId != userId) {
+			notificationEventPublisher.publish(
+				SocialNotificationEvent(
+					type = "POST_LIKED",
+					recipientId = post.authorId,
+					actorId = userId,
+					postId = postId,
+				),
+			)
 		}
 
 		return postMapper.toLikeResponse(postLike)
@@ -114,7 +127,7 @@ class PostServiceImpl(
 		postId: UUID,
 		request: CreateCommentRequest,
 	): PostCommentResponse {
-		ensurePostExists(postId)
+		val post = findPost(postId)
 
 		val comment = postCommentRepository.save(
 			PostComment(
@@ -123,6 +136,17 @@ class PostServiceImpl(
 				content = request.content.trim(),
 			),
 		)
+		if (post.authorId != authorId) {
+			notificationEventPublisher.publish(
+				SocialNotificationEvent(
+					type = "POST_COMMENTED",
+					recipientId = post.authorId,
+					actorId = authorId,
+					postId = postId,
+					commentId = comment.id,
+				),
+			)
+		}
 
 		return postMapper.toCommentResponse(comment)
 	}

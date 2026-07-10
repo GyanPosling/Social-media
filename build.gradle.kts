@@ -16,15 +16,14 @@ subprojects {
 		extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension> {
 			compilerOptions {
 				freeCompilerArgs.addAll("-Xjsr305=strict")
+				jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
 			}
 		}
 	}
 
 	plugins.withId("java") {
-		extensions.configure<JavaPluginExtension> {
-			toolchain {
-				languageVersion = JavaLanguageVersion.of(21)
-			}
+		tasks.withType<JavaCompile> {
+			options.release.set(21)
 		}
 	}
 

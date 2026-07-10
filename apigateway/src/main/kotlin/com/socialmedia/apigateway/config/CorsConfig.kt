@@ -15,7 +15,7 @@ class CorsConfig(
 	@Bean
 	fun corsWebFilter(): CorsWebFilter {
 		val configuration = CorsConfiguration().apply {
-			this.allowedOrigins = allowedOrigins.split(",").map(String::trim)
+			this.allowedOrigins = this@CorsConfig.allowedOrigins.split(",").map(String::trim)
 			allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
 			allowedHeaders = listOf("Authorization", "Content-Type", "Cache-Control")
 			exposedHeaders = listOf("Authorization")

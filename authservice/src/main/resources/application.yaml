@@ -14,6 +14,13 @@ spring:
     table: flyway_schema_history_auth
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+users:
+  kafka:
+    topic: social.users
 
 security:
   jwt:

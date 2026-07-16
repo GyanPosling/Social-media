@@ -4,6 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 data class SocialNotificationEvent(
+	val eventId: UUID = UUID.randomUUID(),
 	val type: String,
 	val recipientId: UUID,
 	val actorId: UUID,

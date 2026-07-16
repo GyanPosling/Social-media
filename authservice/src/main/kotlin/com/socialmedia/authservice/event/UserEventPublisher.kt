@@ -1,13 +1,14 @@
 package com.socialmedia.authservice.event
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.socialmedia.authservice.messaging.OutboxEvent
+import com.socialmedia.authservice.messaging.OutboxEventRepository
 import org.slf4j.LoggerFactory
-import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Component
 
 @Component
 class UserEventPublisher(
-	private val kafkaTemplate: KafkaTemplate<String, String>,
+	private val outboxEventRepository: OutboxEventRepository,
 	private val objectMapper: ObjectMapper,
 ) {
 	private companion object {
@@ -18,9 +19,17 @@ class UserEventPublisher(
 
 	fun publishUserRegistered(event: UserRegisteredEvent) {
 		runCatching {
-			kafkaTemplate.send(TOPIC, event.userId.toString(), objectMapper.writeValueAsString(event))
+			outboxEventRepository.save(
+				OutboxEvent(
+					id = event.eventId,
+					aggregateId = event.userId.toString(),
+					topic = TOPIC,
+					eventType = "USER_REGISTERED",
+					payload = objectMapper.writeValueAsString(event),
+				),
+			)
 		}.onFailure { exception ->
-			logger.warn("Failed to publish user registered event {}", event, exception)
+			logger.warn("Failed to store user registered outbox event {}", event, exception)
 		}
 	}
 }

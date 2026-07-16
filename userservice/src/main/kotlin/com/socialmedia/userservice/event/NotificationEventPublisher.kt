@@ -1,13 +1,14 @@
 package com.socialmedia.userservice.event
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.socialmedia.userservice.messaging.OutboxEvent
+import com.socialmedia.userservice.messaging.OutboxEventRepository
 import org.slf4j.LoggerFactory
-import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Component
 
 @Component
 class NotificationEventPublisher(
-	private val kafkaTemplate: KafkaTemplate<String, String>,
+	private val outboxEventRepository: OutboxEventRepository,
 	private val objectMapper: ObjectMapper,
 ) {
 	private companion object {
@@ -18,9 +19,17 @@ class NotificationEventPublisher(
 
 	fun publish(event: SocialNotificationEvent) {
 		runCatching {
-			kafkaTemplate.send(TOPIC, event.recipientId.toString(), objectMapper.writeValueAsString(event))
+			outboxEventRepository.save(
+				OutboxEvent(
+					id = event.eventId,
+					aggregateId = event.recipientId.toString(),
+					topic = TOPIC,
+					eventType = event.type,
+					payload = objectMapper.writeValueAsString(event),
+				),
+			)
 		}.onFailure { exception ->
-			logger.warn("Failed to publish notification event {}", event, exception)
+			logger.warn("Failed to store notification outbox event {}", event, exception)
 		}
 	}
 }

@@ -45,6 +45,7 @@ class JwtAuthenticationFilter(
 			"/docs",
 			"/actuator/health",
 			"/actuator/info",
+			"/actuator/prometheus",
 		)
 	}
 

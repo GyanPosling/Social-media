@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: userservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: userservice
+  template:
+    metadata:
+      labels:
+        app: userservice
+    spec:
+      containers:
+        - name: userservice
+          image: social-media-userservice:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          envFrom:
+            - configMapRef:
+                name: social-media-config
+            - secretRef:
+                name: social-media-secrets
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/social_media
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: social-media-secrets
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: social-media-secrets
+                  key: POSTGRES_PASSWORD
+            - name: SPRING_DATA_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: social-media-config
+                  key: REDIS_HOST
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: social-media-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: userservice
+spec:
+  selector:
+    app: userservice
+  ports:
+    - port: 8081
+      targetPort: 8081

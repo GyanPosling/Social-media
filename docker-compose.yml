@@ -34,17 +34,176 @@ services:
     container_name: social-media-kafka
     ports:
       - "9092:9092"
+      - "19092:19092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:19092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+  apigateway:
+    build:
+      context: ./apigateway
+    container_name: social-media-apigateway
+    depends_on:
+      - redis
+      - authservice
+      - userservice
+      - postservice
+      - notificationservice
+    environment:
+      SPRING_DATA_REDIS_HOST: redis
+      AUTHSERVICE_BASE_URL: http://authservice:8083
+      USERSERVICE_BASE_URL: http://userservice:8081
+      POSTSERVICE_BASE_URL: http://postservice:8082
+      NOTIFICATIONSERVICE_BASE_URL: http://notificationservice:8084
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-to-at-least-32-characters}
+      GATEWAY_INTERNAL_SIGNING_SECRET: ${GATEWAY_INTERNAL_SIGNING_SECRET:-change-this-internal-secret-to-at-least-32-characters}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+      TRACING_SAMPLING_PROBABILITY: 1.0
+    ports:
+      - "8080:8080"
+
+  authservice:
+    build:
+      context: ./authservice
+    container_name: social-media-authservice
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/social_media
+      SPRING_DATASOURCE_USERNAME: social
+      SPRING_DATASOURCE_PASSWORD: social
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-to-at-least-32-characters}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+      TRACING_SAMPLING_PROBABILITY: 1.0
+    ports:
+      - "8083:8083"
+
+  userservice:
+    build:
+      context: ./userservice
+    container_name: social-media-userservice
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/social_media
+      SPRING_DATASOURCE_USERNAME: social
+      SPRING_DATASOURCE_PASSWORD: social
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GATEWAY_INTERNAL_SIGNING_SECRET: ${GATEWAY_INTERNAL_SIGNING_SECRET:-change-this-internal-secret-to-at-least-32-characters}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+      TRACING_SAMPLING_PROBABILITY: 1.0
+    ports:
+      - "8081:8081"
+
+  postservice:
+    build:
+      context: ./postservice
+    container_name: social-media-postservice
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/social_media
+      SPRING_DATASOURCE_USERNAME: social
+      SPRING_DATASOURCE_PASSWORD: social
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GATEWAY_INTERNAL_SIGNING_SECRET: ${GATEWAY_INTERNAL_SIGNING_SECRET:-change-this-internal-secret-to-at-least-32-characters}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+      TRACING_SAMPLING_PROBABILITY: 1.0
+    ports:
+      - "8082:8082"
+
+  notificationservice:
+    build:
+      context: ./notificationservice
+    container_name: social-media-notificationservice
+    depends_on:
+      - mongodb
+      - kafka
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://root:secret@mongodb:27017/notifications?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      GATEWAY_INTERNAL_SIGNING_SECRET: ${GATEWAY_INTERNAL_SIGNING_SECRET:-change-this-internal-secret-to-at-least-32-characters}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318/v1/traces
+      TRACING_SAMPLING_PROBABILITY: 1.0
+    ports:
+      - "8084:8084"
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: social-media-prometheus
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: social-media-grafana
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: social-media-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./observability/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+    ports:
+      - "3100:3100"
+
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: social-media-promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    depends_on:
+      - loki
+    volumes:
+      - ./observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: social-media-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo/tempo.yml:/etc/tempo.yml:ro
+    ports:
+      - "3200:3200"
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.113.0
+    container_name: social-media-otel-collector
+    command: ["--config=/etc/otel-collector.yml"]
+    depends_on:
+      - tempo
+    volumes:
+      - ./observability/otel-collector/otel-collector.yml:/etc/otel-collector.yml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
 
 volumes:
   postgres-data:

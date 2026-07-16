@@ -24,6 +24,8 @@ class JwtService(
 			.expiresAt(expiresAt)
 			.subject(account.id.toString())
 			.claim("email", account.email)
+			.claim("roles", listOf(account.role))
+			.claim("scope", account.role.lowercase())
 			.build()
 		val headers = JwsHeader.with(MacAlgorithm.HS256).build()
 		val tokenValue = jwtEncoder.encode(JwtEncoderParameters.from(headers, claims)).tokenValue

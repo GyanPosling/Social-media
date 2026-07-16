@@ -20,6 +20,9 @@ class AuthAccount(
 	@Column(name = "password_hash", nullable = false, length = 100)
 	val passwordHash: String,
 
+	@Column(nullable = false, length = 50)
+	val role: String = "USER",
+
 	@Column(name = "created_at", nullable = false)
 	val createdAt: Instant = Instant.now(),
 

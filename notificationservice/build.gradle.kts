@@ -7,6 +7,10 @@ plugins {
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("io.micrometer:micrometer-tracing-bridge-otel")
+	implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+	implementation("net.logstash.logback:logstash-logback-encoder:8.1")
+	runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 	implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-web")

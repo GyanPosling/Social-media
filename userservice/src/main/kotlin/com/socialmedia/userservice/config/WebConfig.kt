@@ -1,6 +1,7 @@
 package com.socialmedia.userservice.config
 
 import com.socialmedia.userservice.security.GatewaySignatureInterceptor
+import com.socialmedia.userservice.observability.CorrelationIdInterceptor
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.web.config.PageableHandlerMethodArgumentResolverCustomizer
@@ -11,6 +12,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 @Configuration
 class WebConfig(
 	private val gatewaySignatureInterceptor: GatewaySignatureInterceptor,
+	private val correlationIdInterceptor: CorrelationIdInterceptor,
 ) : WebMvcConfigurer {
 	@Bean
 	fun pageableResolverCustomizer(): PageableHandlerMethodArgumentResolverCustomizer =
@@ -19,11 +21,15 @@ class WebConfig(
 		}
 
 	override fun addInterceptors(registry: InterceptorRegistry) {
+		registry.addInterceptor(correlationIdInterceptor)
+			.addPathPatterns("/**")
+
 		registry.addInterceptor(gatewaySignatureInterceptor)
 			.addPathPatterns("/**")
 			.excludePathPatterns(
 				"/actuator/health",
 				"/actuator/info",
+				"/actuator/prometheus",
 				"/v3/api-docs/**",
 				"/swagger-ui/**",
 				"/swagger-ui.html",

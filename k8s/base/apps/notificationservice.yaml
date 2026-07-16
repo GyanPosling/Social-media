@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notificationservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notificationservice
+  template:
+    metadata:
+      labels:
+        app: notificationservice
+    spec:
+      containers:
+        - name: notificationservice
+          image: social-media-notificationservice:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8084
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          envFrom:
+            - configMapRef:
+                name: social-media-config
+            - secretRef:
+                name: social-media-secrets
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: social-media-config
+                  key: MONGODB_URI
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: social-media-config
+                  key: KAFKA_BOOTSTRAP_SERVERS
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8084
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notificationservice
+spec:
+  selector:
+    app: notificationservice
+  ports:
+    - port: 8084
+      targetPort: 8084

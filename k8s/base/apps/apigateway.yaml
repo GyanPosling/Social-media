@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apigateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apigateway
+  template:
+    metadata:
+      labels:
+        app: apigateway
+    spec:
+      containers:
+        - name: apigateway
+          image: social-media-apigateway:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          envFrom:
+            - configMapRef:
+                name: social-media-config
+            - secretRef:
+                name: social-media-secrets
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apigateway
+spec:
+  selector:
+    app: apigateway
+  ports:
+    - port: 8080
+      targetPort: 8080
